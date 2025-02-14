@@ -7,7 +7,9 @@ package s3
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
+	"net/http"
 	"os"
 	"sync"
 
@@ -25,6 +27,10 @@ func CreateClientWithCustomEndpoint(ctx context.Context, svcConf *buconfig.Servi
 	cfg, err := config.LoadDefaultConfig(
 		ctx,
 		config.WithRegion(svcConf.Region),
+		// Ref: https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/config#WithHTTPClient
+		config.WithHTTPClient(&http.Client{Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: *aws.Bool(svcConf.InsecureSkipVerify)},
+		}}),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load AWS configuration: %w", err)

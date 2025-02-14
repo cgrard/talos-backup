@@ -19,6 +19,7 @@ type ServiceConfig struct {
 	AgeX25519PublicKey string `yaml:"ageX25519PublicKey"`
 	UsePathStyle       bool   `yaml:"usePathStyle"`
 	DisableEncryption  bool   `yaml:"disableEncryption"`
+	InsecureSkipVerify bool   `yaml:"insecureSkipVerify"`
 }
 
 const (
@@ -30,6 +31,7 @@ const (
 	usePathStyleEnvVar       = "USE_PATH_STYLE"
 	disableEncryptionEnvVar  = "DISABLE_ENCRYPTION"
 	ageX25519PublicKeyEnvVar = "AGE_X25519_PUBLIC_KEY"
+	insecureSkipVerifyEnvVar = "INSECURE_SKIP_VERIFY"
 )
 
 // GetServiceConfig parses the backup service config at path.
@@ -43,5 +45,6 @@ func GetServiceConfig() *ServiceConfig {
 		UsePathStyle:       os.Getenv(usePathStyleEnvVar) == "false",
 		DisableEncryption:  os.Getenv(disableEncryptionEnvVar) == "true",
 		AgeX25519PublicKey: os.Getenv(ageX25519PublicKeyEnvVar),
+		InsecureSkipVerify: os.Getenv(insecureSkipVerifyEnvVar) == "false",
 	}
 }
