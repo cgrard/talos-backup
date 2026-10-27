@@ -65,6 +65,34 @@ func TestPushSnapshotCustomEndpoint(t *testing.T) {
 	require.NotContains(t, req.Header.Get("X-Amz-Content-Sha256"), "TRAILER")
 }
 
+func TestPushSnapshotPrefix(t *testing.T) {
+	t.Setenv("AWS_ACCESS_KEY_ID", "test")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "test")
+	t.Chdir(t.TempDir())
+
+	require.NoError(t, os.WriteFile("snap.db", []byte("snapshot"), 0o600))
+
+	var got string
+
+	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		got = r.URL.Path
+	}))
+	t.Cleanup(srv.Close)
+
+	client, err := s3.CreateClientWithCustomEndpoint(t.Context(), &buconfig.ServiceConfig{CustomS3Endpoint: srv.URL, UsePathStyle: true})
+	require.NoError(t, err)
+
+	for prefix, want := range map[string]string{
+		"":      "/bucket/snap.db",
+		"a/b":   "/bucket/a/b/snap.db",
+		"/a/b/": "/bucket/a/b/snap.db",
+		"a//b":  "/bucket/a/b/snap.db",
+	} {
+		require.NoError(t, s3.PushSnapshot(t.Context(), buconfig.S3Info{Bucket: "bucket"}, client, prefix, "snap.db"))
+		require.Equal(t, want, got, "prefix %q", prefix)
+	}
+}
+
 func TestPushSnapshotError(t *testing.T) {
 	t.Setenv("AWS_ACCESS_KEY_ID", "test")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "test")

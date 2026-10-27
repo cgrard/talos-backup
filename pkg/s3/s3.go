@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
+	"strings"
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -67,7 +69,7 @@ func PushSnapshot(ctx context.Context, conf buconfig.S3Info, s3c *s3.Client, s3P
 	closeOnce := sync.OnceValue(f.Close)
 	defer closeOnce() //nolint:errcheck
 
-	objectKey := fmt.Sprintf("%s/%s", s3Prefix, snapPath)
+	objectKey := strings.TrimPrefix(path.Join(s3Prefix, snapPath), "/")
 
 	log.Printf("Uploading %s to bucket %s with key %s", snapPath, conf.Bucket, objectKey)
 
