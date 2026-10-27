@@ -13,8 +13,11 @@ metadata:
   name: talos-backup
 spec:
   schedule: '0/10 * * * *'
+  # never run two backups at once, and stop a stuck backup before the next one is due
+  concurrencyPolicy: Forbid
   jobTemplate:
     spec:
+      activeDeadlineSeconds: 600
       template:
         spec:
           containers:

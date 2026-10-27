@@ -58,6 +58,8 @@ Post-quantum and classic keys cannot be mixed: age refuses it, as the backup wou
 * a Talos `ServiceAccount` (`talos.dev/v1alpha1`): Talos creates a Kubernetes secret with the same name, holding a talosconfig limited to the `os:etcd:backup` role,
 * a CronJob running talos-backup every 10 minutes, with that secret mounted on `/var/run/secrets/talos.dev`, where talos-backup looks for its talosconfig.
 
+The CronJob forbids concurrent runs and stops a backup after 10 minutes (`activeDeadlineSeconds`), so a stuck upload cannot pile up jobs: adjust it along with the schedule.
+
 Snapshots are written to the working directory (`/tmp`, an `emptyDir`) before upload, so it needs room for up to three times the etcd database size (snapshot, compressed and encrypted copies).
 
 Update the S3 settings and the age public key, then apply it:
@@ -86,13 +88,13 @@ talos-backup is configured with environment variables.
 | `AGE_X25519_PUBLIC_KEY` | | Deprecated alias of `AGE_RECIPIENT_PUBLIC_KEY`, both are merged. |
 | `DISABLE_ENCRYPTION` | `false` | Set to `true` to upload unencrypted snapshots. |
 | `ENABLE_COMPRESSION` | `false` | Set to `true` to compress snapshots with zstd before encryption. |
-| `AWS_REGION` | | Bucket region. |
+| `AWS_REGION` | `us-east-1` with `CUSTOM_S3_ENDPOINT` | Bucket region, required with AWS S3. |
 | `CUSTOM_S3_ENDPOINT` | AWS S3 | URL of an S3-compatible API, e.g. `https://s3.example.com`. |
 | `USE_PATH_STYLE` | `true` | With `CUSTOM_S3_ENDPOINT` only, set to `false` for virtual-hosted-style addressing. |
 | `CLUSTER_NAME` | talosconfig context name | Used in the backup file name. |
 | `S3_PREFIX` | cluster name | Prefix (folder) of the backups in the bucket. |
 
-The configuration is checked before any snapshot is taken: a missing bucket or an invalid age key makes the job fail right away.
+The configuration is checked before any snapshot is taken: a missing bucket, an invalid age key or a missing AWS region makes the job fail right away.
 
 ### Backup names
 
