@@ -19,15 +19,22 @@ spec:
         spec:
           containers:
             - name: talos-backup
-              image: registry.example.com/myusername/talos-backup:latest
+              image: ghcr.io/siderolabs/talos-backup:latest
               workingDir: /tmp
               imagePullPolicy: IfNotPresent
               env:
+                # S3 credentials, from a secret created with:
+                # kubectl create secret generic talos-backup-s3 --from-literal=AWS_ACCESS_KEY_ID=... --from-literal=AWS_SECRET_ACCESS_KEY=...
                 - name: AWS_ACCESS_KEY_ID
-                  value: talosbackupawsaccesskeyid
+                  valueFrom:
+                    secretKeyRef:
+                      name: talos-backup-s3
+                      key: AWS_ACCESS_KEY_ID
                 - name: AWS_SECRET_ACCESS_KEY
-                  # consider storing this as a secret.
-                  value: d7m4WgVWxUd2jNPKwsoQLWzFG
+                  valueFrom:
+                    secretKeyRef:
+                      name: talos-backup-s3
+                      key: AWS_SECRET_ACCESS_KEY
                 - name: AWS_REGION
                   value: us-west-2
                 # CUSTOM_S3_ENDPOINT is optional; if omitted the service will fallback to default AWS endpoints.
@@ -45,7 +52,9 @@ spec:
                 # S3_PREFIX is optional; if omitted it will fall back to the cluster name.
                 - name: S3_PREFIX
                   value: 'important/backups'
-                # AGE_RECIPIENT_PUBLIC_KEY supports multiple recipients as comma-separated keys
+                # AGE_RECIPIENT_PUBLIC_KEY supports multiple recipients as comma-separated keys,
+                # post-quantum and classic keys cannot be mixed.
+                # Set DISABLE_ENCRYPTION to 'true' instead to upload unencrypted snapshots.
                 - name: AGE_RECIPIENT_PUBLIC_KEY
                   value: 'age1khpnnl86pzx96ttyjmldptsl5yn2v9jgmmzcjcufvk00ttkph9zs0ytgec,age1majtfe4q0u030xcjg0ent45stsfev28fjwy0saxqw4c3x85gge5s5gtkwx'
                 # ENABLE_COMPRESSION is optional; set this to true if you want to add compression to your etcd snapshot
