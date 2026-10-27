@@ -7,6 +7,7 @@ package config_test
 import (
 	"testing"
 
+	"filippo.io/age"
 	"github.com/stretchr/testify/require"
 
 	"github.com/siderolabs/talos-backup/pkg/config"
@@ -99,6 +100,64 @@ func TestGetServiceConfig(t *testing.T) {
 			}
 
 			require.Equal(t, &tc.expected, actual)
+		})
+	}
+}
+
+func TestServiceConfigValidate(t *testing.T) {
+	x25519, err := age.GenerateX25519Identity()
+	require.NoError(t, err)
+
+	hybrid, err := age.GenerateHybridIdentity()
+	require.NoError(t, err)
+
+	classic, postQuantum := x25519.Recipient().String(), hybrid.Recipient().String()
+
+	for _, tc := range []struct {
+		name    string
+		wantErr string
+		config  config.ServiceConfig
+	}{
+		{
+			name:   "classic keys",
+			config: config.ServiceConfig{Bucket: "bucket", AgeRecipientPublicKey: []string{classic, classic}},
+		},
+		{
+			name:   "post-quantum key",
+			config: config.ServiceConfig{Bucket: "bucket", AgeRecipientPublicKey: []string{postQuantum}},
+		},
+		{
+			name:   "unencrypted without keys",
+			config: config.ServiceConfig{Bucket: "bucket", DisableEncryption: true},
+		},
+		{
+			name:    "missing bucket",
+			config:  config.ServiceConfig{AgeRecipientPublicKey: []string{classic}},
+			wantErr: "BUCKET is required",
+		},
+		{
+			name:    "missing keys",
+			config:  config.ServiceConfig{Bucket: "bucket"},
+			wantErr: "AGE_RECIPIENT_PUBLIC_KEY is required",
+		},
+		{
+			name:    "invalid key",
+			config:  config.ServiceConfig{Bucket: "bucket", AgeRecipientPublicKey: []string{"age1invalid"}},
+			wantErr: "invalid AGE_RECIPIENT_PUBLIC_KEY",
+		},
+		{
+			name:    "mixed post-quantum and classic keys",
+			config:  config.ServiceConfig{Bucket: "bucket", AgeRecipientPublicKey: []string{postQuantum, classic}},
+			wantErr: "can't mix post-quantum and classic recipients",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.config.Validate()
+			if tc.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				require.ErrorContains(t, err, tc.wantErr)
+			}
 		})
 	}
 }

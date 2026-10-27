@@ -5,9 +5,12 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strings"
 	"unicode"
+
+	"github.com/siderolabs/talos-backup/pkg/encryption"
 )
 
 // ServiceConfig holds configuration values for the etcd snapshot service.
@@ -58,4 +61,25 @@ func GetServiceConfig() *ServiceConfig {
 // splitKeys splits a comma separated list of keys, ignoring blanks.
 func splitKeys(s string) []string {
 	return strings.FieldsFunc(s, func(r rune) bool { return r == ',' || unicode.IsSpace(r) })
+}
+
+// Validate checks the configuration before any snapshot is taken.
+func (c *ServiceConfig) Validate() error {
+	if c.Bucket == "" {
+		return fmt.Errorf("%s is required", bucketEnvVar)
+	}
+
+	if c.DisableEncryption {
+		return nil
+	}
+
+	if len(c.AgeRecipientPublicKey) == 0 {
+		return fmt.Errorf("%s is required unless %s is \"true\"", ageRecipientPublicKeyEnvVar, disableEncryptionEnvVar)
+	}
+
+	if err := encryption.CheckRecipients(c.AgeRecipientPublicKey); err != nil {
+		return fmt.Errorf("invalid %s: %w", ageRecipientPublicKeyEnvVar, err)
+	}
+
+	return nil
 }

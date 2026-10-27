@@ -22,6 +22,9 @@ func run() error {
 	ctx := context.Background()
 
 	serviceConfig := config.GetServiceConfig()
+	if err := serviceConfig.Validate(); err != nil {
+		return fmt.Errorf("invalid configuration: %w", err)
+	}
 
 	talosConfig, err := talosconfig.Open("")
 	if err != nil {

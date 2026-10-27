@@ -27,13 +27,36 @@ func EncryptFile(fileToEncryptPath string, publicKeys []string) (string, error) 
 	return encryptedFileName, err
 }
 
+// CheckRecipients reports whether the public keys are valid and can be used together,
+// e.g. age refuses to mix post-quantum and classic recipients.
+func CheckRecipients(publicKeys []string) error {
+	recipients, err := parseRecipients(publicKeys)
+	if err != nil {
+		return err
+	}
+
+	w, err := age.Encrypt(io.Discard, recipients...)
+	if err != nil {
+		return err
+	}
+
+	return w.Close()
+}
+
+func parseRecipients(publicKeys []string) ([]age.Recipient, error) {
+	recipients, err := age.ParseRecipients(strings.NewReader(strings.Join(publicKeys, "\n")))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse public key: %w", err)
+	}
+
+	return recipients, nil
+}
+
 // encryptFile encrypts a file with one or more age recipient public keys.
 func encryptFile(fileToEncryptPath string, publicKeys []string) (string, error) {
-	publicKeysReader := strings.NewReader(strings.Join(publicKeys, "\n"))
-
-	recipients, err := age.ParseRecipients(publicKeysReader)
+	recipients, err := parseRecipients(publicKeys)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse public key: %w", err)
+		return "", err
 	}
 
 	fileToEncrypt, err := os.OpenFile(fileToEncryptPath, os.O_RDONLY, 0o600)
