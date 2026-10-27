@@ -231,6 +231,19 @@ func TestBackupSnapshotErrors(t *testing.T) {
 	}
 }
 
+func TestBackupSnapshotS3ConfigError(t *testing.T) {
+	setup(t)
+	t.Setenv("AWS_REGION", "")
+	t.Setenv("AWS_DEFAULT_REGION", "")
+
+	// AWS S3 without a region: the snapshot must not be taken
+	err := service.BackupSnapshot(t.Context(), &config.ServiceConfig{Bucket: "bucket", DisableEncryption: true},
+		&talosconfig.Config{}, fakeSnapshotter{err: errors.New("snapshot taken")})
+	require.ErrorContains(t, err, "failed to create S3 client")
+
+	requireEmptyDir(t)
+}
+
 func restore(t *testing.T, body []byte, identity age.Identity, compressed, encrypted bool) []byte {
 	t.Helper()
 

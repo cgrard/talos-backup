@@ -26,6 +26,12 @@ func BackupSnapshot(ctx context.Context, serviceConfig *config.ServiceConfig, ta
 		clusterName = talosConfig.Context
 	}
 
+	// fail on S3 configuration errors before taking a snapshot
+	client, err := s3.CreateClientWithCustomEndpoint(ctx, serviceConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create S3 client: %w", err)
+	}
+
 	snapshotPath, err := talos.TakeEtcdSnapshot(ctx, talosClient, clusterName)
 	if err != nil {
 		return fmt.Errorf("failed to take etcd snapshot: %w", err)
@@ -53,11 +59,6 @@ func BackupSnapshot(ctx context.Context, serviceConfig *config.ServiceConfig, ta
 		defer util.CleanupFile(encryptedFileName)
 
 		snapshotPath = encryptedFileName
-	}
-
-	client, err := s3.CreateClientWithCustomEndpoint(ctx, serviceConfig)
-	if err != nil {
-		return fmt.Errorf("failed to create S3 client: %w", err)
 	}
 
 	s3Info := config.S3Info{
