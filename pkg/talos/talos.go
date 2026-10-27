@@ -9,7 +9,6 @@ package talos
 import (
 	"context"
 	"crypto/sha256"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"log"
@@ -18,23 +17,7 @@ import (
 
 	"github.com/siderolabs/talos/pkg/machinery/api/machine"
 	talosclient "github.com/siderolabs/talos/pkg/machinery/client"
-	talosconfig "github.com/siderolabs/talos/pkg/machinery/client/config"
 )
-
-// CreateClient returns a talos API client given a talosconfig string.
-func CreateClient(ctx context.Context, talosSecret string) (*talosclient.Client, error) {
-	decodedSecret, err := base64.StdEncoding.DecodeString(talosSecret)
-	if err != nil {
-		return nil, fmt.Errorf("failed decoding talosSecret: %w", err)
-	}
-
-	t, err := talosconfig.FromBytes(decodedSecret)
-	if err != nil {
-		return nil, fmt.Errorf("failed creating config from bytes: %w", err)
-	}
-
-	return talosclient.New(ctx, talosclient.WithConfig(t))
-}
 
 // TakeEtcdSnapshot will take an etcd snapshot given a talos client
 // and save/validate it locally.
@@ -69,7 +52,6 @@ func TakeEtcdSnapshot(ctx context.Context, tc *talosclient.Client, clusterName s
 		return "", fmt.Errorf("error fsyncing: %w", err)
 	}
 
-	// TODO: probably need to clean up the snap if there's an issue w/ it
 	// this check is from https://github.com/etcd-io/etcd/blob/client/v3.5.0-alpha.0/client/v3/snapshot/v3_snapshot.go#L46
 	if (size % 512) != sha256.Size {
 		return "", fmt.Errorf("sha256 checksum not found (size %d)", size)

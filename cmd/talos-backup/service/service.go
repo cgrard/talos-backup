@@ -21,7 +21,7 @@ import (
 )
 
 // BackupSnapshot takes a snapshot of etcd, encrypts it or not and uploads it to S3.
-func BackupSnapshot(ctx context.Context, serviceConfig *config.ServiceConfig, talosConfig *talosconfig.Config, talosClient *talosclient.Client, enableCompression bool, disableEncryption bool) error {
+func BackupSnapshot(ctx context.Context, serviceConfig *config.ServiceConfig, talosConfig *talosconfig.Config, talosClient *talosclient.Client) error {
 	clusterName := serviceConfig.ClusterName
 	if clusterName == "" {
 		clusterName = talosConfig.Context
@@ -34,7 +34,7 @@ func BackupSnapshot(ctx context.Context, serviceConfig *config.ServiceConfig, ta
 
 	defer util.CleanupFile(snapshotPath)
 
-	if enableCompression {
+	if serviceConfig.EnableCompression {
 		compressedFileName, compressionErr := compression.CompressFile(snapshotPath)
 		if compressionErr != nil {
 			return fmt.Errorf("failed to compress etcd snapshot: %w", compressionErr)
@@ -45,7 +45,7 @@ func BackupSnapshot(ctx context.Context, serviceConfig *config.ServiceConfig, ta
 		snapshotPath = compressedFileName
 	}
 
-	if !disableEncryption {
+	if !serviceConfig.DisableEncryption {
 		encryptedFileName, encryptionErr := encryption.EncryptFile(snapshotPath, serviceConfig.AgeRecipientPublicKey)
 		if encryptionErr != nil {
 			return fmt.Errorf("failed to encrypt etcd snapshot: %w", encryptionErr)
@@ -74,7 +74,7 @@ func BackupSnapshot(ctx context.Context, serviceConfig *config.ServiceConfig, ta
 	if err != nil {
 		snapshotType := "snapshot"
 
-		if !disableEncryption {
+		if !serviceConfig.DisableEncryption {
 			snapshotType = "encrypted snapshot"
 		}
 
