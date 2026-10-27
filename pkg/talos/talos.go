@@ -22,7 +22,8 @@ import (
 // TakeEtcdSnapshot will take an etcd snapshot given a talos client
 // and save/validate it locally.
 func TakeEtcdSnapshot(ctx context.Context, tc *talosclient.Client, clusterName string) (string, error) {
-	timeStamp := time.Now()
+	// UTC keeps object keys stable regardless of the container timezone
+	timeStamp := time.Now().UTC()
 
 	dbPath := fmt.Sprintf("%s-%s.snap", clusterName, timeStamp.Format(time.RFC3339))
 	partPath := dbPath + ".part"
@@ -58,7 +59,7 @@ func TakeEtcdSnapshot(ctx context.Context, tc *talosclient.Client, clusterName s
 	}
 
 	if err = os.Rename(partPath, dbPath); err != nil {
-		return "", fmt.Errorf("sha256 checksum not found (size %d)", size)
+		return "", fmt.Errorf("error renaming snapshot: %w", err)
 	}
 
 	log.Printf("etcd snapshot for cluster %q saved to %q (%d bytes)\n", clusterName, dbPath, size)

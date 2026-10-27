@@ -46,21 +46,21 @@ func compressFile(fileToCompressPath string) (string, error) {
 
 	encoder, err := zstd.NewWriter(compressedFile)
 	if err != nil {
-		return "", err
+		return compressedFileName, err
 	}
 
 	defer encoder.Close() //nolint:errcheck
 
 	if _, err := io.Copy(encoder, fileToCompress); err != nil {
-		return "", fmt.Errorf("failed to write compressed file %q: %w", compressedFileName, err)
+		return compressedFileName, fmt.Errorf("failed to write compressed file %q: %w", compressedFileName, err)
 	}
 
 	if err := encoder.Close(); err != nil {
-		return "", fmt.Errorf("failed to close writer: %w", err)
+		return compressedFileName, fmt.Errorf("failed to close writer: %w", err)
 	}
 
 	if err := compressedFile.Sync(); err != nil {
-		return "", fmt.Errorf("failed to sync compressed file to disk: %w", err)
+		return compressedFileName, fmt.Errorf("failed to sync compressed file to disk: %w", err)
 	}
 
 	return compressedFileName, nil

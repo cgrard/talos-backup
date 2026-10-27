@@ -54,19 +54,19 @@ func encryptFile(fileToEncryptPath string, publicKeys []string) (string, error) 
 
 	w, err := age.Encrypt(encryptedFile, recipients...)
 	if err != nil {
-		return "", fmt.Errorf("failed to encrypt file %q: %w", fileToEncryptPath, err)
+		return encryptedFileName, fmt.Errorf("failed to encrypt file %q: %w", fileToEncryptPath, err)
 	}
 
 	if _, err := io.Copy(w, fileToEncrypt); err != nil {
-		return "", fmt.Errorf("failed to write encrypted file %q: %w", encryptedFileName, err)
+		return encryptedFileName, fmt.Errorf("failed to write encrypted file %q: %w", encryptedFileName, err)
 	}
 
 	if err := w.Close(); err != nil {
-		return "", fmt.Errorf("failed to close writer: %w", err)
+		return encryptedFileName, fmt.Errorf("failed to close writer: %w", err)
 	}
 
 	if err := encryptedFile.Sync(); err != nil {
-		return "", fmt.Errorf("failed to sync encrypted file to disk: %w", err)
+		return encryptedFileName, fmt.Errorf("failed to sync encrypted file to disk: %w", err)
 	}
 
 	return encryptedFileName, nil
