@@ -16,12 +16,17 @@ import (
 	"time"
 
 	"github.com/siderolabs/talos/pkg/machinery/api/machine"
-	talosclient "github.com/siderolabs/talos/pkg/machinery/client"
+	"google.golang.org/grpc"
 )
+
+// EtcdSnapshotter is the part of the Talos API client used to take snapshots.
+type EtcdSnapshotter interface {
+	EtcdSnapshot(ctx context.Context, req *machine.EtcdSnapshotRequest, callOptions ...grpc.CallOption) (io.ReadCloser, error)
+}
 
 // TakeEtcdSnapshot will take an etcd snapshot given a talos client
 // and save/validate it locally.
-func TakeEtcdSnapshot(ctx context.Context, tc *talosclient.Client, clusterName string) (string, error) {
+func TakeEtcdSnapshot(ctx context.Context, tc EtcdSnapshotter, clusterName string) (string, error) {
 	// UTC keeps object keys stable regardless of the container timezone
 	timeStamp := time.Now().UTC()
 

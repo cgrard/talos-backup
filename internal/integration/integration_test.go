@@ -8,16 +8,20 @@ package dockertest_test
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"testing"
 	"time"
 
+	"filippo.io/age"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/cosi-project/runtime/pkg/safe"
+	"github.com/klauspost/compress/zstd"
 	dockertest "github.com/ory/dockertest/v3"
 	dc "github.com/ory/dockertest/v3/docker"
 	"github.com/siderolabs/talos/cmd/talosctl/cmd/mgmt/gen"
@@ -365,31 +369,61 @@ func cleanup(pool *dockertest.Pool, resources ...*dockertest.Resource) error {
 }
 
 func (suite *integrationTestSuite) TestBackupEncryptedSnapshot() {
-	// when
-	suite.serviceConfig.AgeRecipientPublicKey = []string{
-		"age1khpnnl86pzx96ttyjmldptsl5yn2v9jgmmzcjcufvk00ttkph9zs0ytgec",
-		"age1majtfe4q0u030xcjg0ent45stsfev28fjwy0saxqw4c3x85gge5s5gtkwx",
-	}
-	suite.Require().Nil(
-		service.BackupSnapshot(suite.ctx, &suite.serviceConfig, suite.talosConfig, suite.talosClient),
-	)
-	suite.serviceConfig.AgeRecipientPublicKey = []string{
-		"age1pq1sczsw48n4z6tw38el2kfyuw0436j630r37phwyvfjw7kvgnlfe5qstmt5lecwhqk39kwjjcp42jtukw4vtwgjnwrvwy8aajdjxggr0c5hj4x4dfm2vxhu6kylj39tcwjk06cvzw8dp3rk2d44mx85tm8jrd5nxn2wznedz9nc74thrh29ysyenr8krzu02ccy9kgx9wgqa28tdxk8jxga6y46wqv2p0g2079g6zkkdvj87560ppnjw42n4e5ky94rny4ndq5sxx90l8kwqqnp9036ycem4v0wsw8rjtqq7t9szqlzfyquwahzmvqx29xdcqk90hn295w5vg2s9u5zaryesvwzgq55aqvcfzdfuzx0tmpf8v93jkv8x7u2kqwlvfrdhrspt3mxqhkc699mtyy38mfacg52yrpfdw0mfk8k2ajxevjf952540fjpq982xagvtx8nkfuvt4rx8xfrslqvw4zc4gl4gy05cm0thqfgyvgegnkd2twa9ra82ng6n9vpx2g5hrw3gkfdajczwg4djngzn33j9d0zva4jqen3sj3nakxx93cerycksgcr2kwtasj02qrspjy3pltanzqk7gmqr8fcuutwh0xsrcgeetrvw84xem5wrvrf3zdx4hf9sugrm20nhudaw5xxqpts7gf44zrvth2qx5cyzrch7l2w9cx3uuvhk2uzh3x2c2ktfmvw7jk2alk06k078x9tpqestzjjvxzeyxgyt3fhqc8q4axhk5vdvncecu6zyqu4dtne52hd36w4vaasrgf4n4yyfny62kffjfxew78gqr9vrtc4gzezd03vwqumrjm5z5qfqquk5enu9zxttu75m85mztu7r5fxtqnu9xqhtzlj7jgp6guhnnwd9zga8a8vcjgffqs6pfpkvgwjfmj73zkwnhewe2j3rxd63gudl23wg8k9maz8qvdpul9u4f9fm6qvxr49ktkvmxpfjq4p4cskfypc7rks8453t099xrqu6s7ky4k8x2glk4x4234ggmm43yva86qh86z7pe4vtl9e2uzn33lmp9559ykt2v64xwmea2w454mur2yartjdyth223q4vk62ctucaszcy0rrhxap536jydqdxpvtepz689hsmkcea72ff8uacvfj8ne99tkl9d2xcwj4s9uudhpadesmvynt53qfrkkwpphhc8k6xrc35gg6ghjerp6ee7x5zfqexxpx62r0dj2x5dcun26n4f2a5f873jc6je23gm4e6dm8qc26cvqehv5edwjwmrx6ch7gwyvktf04kuxvus4xkvrc4kmt9vhsl956r43z6nxg6m5ffgz2u8pjxj3cg8yljcuufgqeqgfzdhh0jmjug9jhv8x2jakwvx4fghdp0qxp6rfdkcddgznuqm205qrluztst3jet3djth675rqjrrd5u82a3vrj03txdr56d5pk99ym35q54hhxd54drgjpk9ngyk5ww9vzu6vsuky9vkvgg8xcvsqye3dkx7pdsa658fusaqs249yxwfkeh7fg0rljqrnryuv72rm0uhh4f40nyaxydya9xrzyy579tswntaftw95wq7uwjv3xsf3kpqrym3y3cgsa008xyd7zs9qcy34zfdfzscm2jvrxdjsuzr6f5ksqssq9vjpy6de3d6jems9ajetk3dx820awkh0wu8qzv6vcck2gmsyvtc5cw6u6zsxj6k9dggsjq3g854nqe5dg43r4jpj69sdvruk9x562s2s3kyd8c3dkchh2e4pnpywtyp7a6em63r9k8sdkrgyqz9lvgrjy9pw8eua9r8tn0r25mulgl6u38gpr4v0addpwnc2v387vt0yd28as2jcynl2d60wkze4c9mq5h54utsha6fyz5s7zq36dfsy5xg5yv8wdjdhtu4wv278vunhx85qqa7cc8f",
-	}
-	suite.Require().Nil(
-		service.BackupSnapshot(suite.ctx, &suite.serviceConfig, suite.talosConfig, suite.talosClient),
-	)
+	x25519a, err := age.GenerateX25519Identity()
+	suite.Require().NoError(err)
 
-	// then
+	x25519b, err := age.GenerateX25519Identity()
+	suite.Require().NoError(err)
+
+	hybrid, err := age.GenerateHybridIdentity()
+	suite.Require().NoError(err)
+
+	// multiple classic recipients, each must be able to restore
+	suite.serviceConfig.AgeRecipientPublicKey = []string{x25519a.Recipient().String(), x25519b.Recipient().String()}
+	suite.Require().NoError(service.BackupSnapshot(suite.ctx, &suite.serviceConfig, suite.talosConfig, suite.talosClient))
+	suite.requireRestorableBackups(x25519a, x25519b)
+
+	// post-quantum recipient
+	suite.serviceConfig.AgeRecipientPublicKey = []string{hybrid.Recipient().String()}
+	suite.Require().NoError(service.BackupSnapshot(suite.ctx, &suite.serviceConfig, suite.talosConfig, suite.talosClient))
+	suite.requireRestorableBackups(hybrid)
+}
+
+// requireRestorableBackups downloads every backup, restores it with each identity,
+// checks it is a valid etcd snapshot and deletes it.
+func (suite *integrationTestSuite) requireRestorableBackups(identities ...age.Identity) {
 	objects, err := suite.s3Client.ListObjectsV2(suite.ctx, &s3.ListObjectsV2Input{
 		Bucket: aws.String(suite.serviceConfig.Bucket),
 	})
-	suite.Require().Nil(err)
-	suite.Require().NotEmpty(objects.Contents)
+	suite.Require().NoError(err)
+	suite.Require().Len(objects.Contents, 1)
 
-	for _, obj := range objects.Contents {
-		suite.Require().Regexp(regexp.MustCompile(`testdata/snapshots/talos-test-cluster-\d\d\d\d-\d\d-\d\dT\d\d:\d\d:\d\dZ\.snap\.zst\.age`), aws.ToString(obj.Key))
+	key := objects.Contents[0].Key
+	suite.Require().Regexp(regexp.MustCompile(`^testdata/snapshots/talos-test-cluster-\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ\.snap\.zst\.age$`), aws.ToString(key))
 
-		suite.Require().Greater(aws.ToInt64(obj.Size), int64(0))
+	for _, identity := range identities {
+		obj, err := suite.s3Client.GetObject(suite.ctx, &s3.GetObjectInput{Bucket: aws.String(suite.serviceConfig.Bucket), Key: key})
+		suite.Require().NoError(err)
+
+		decrypted, err := age.Decrypt(obj.Body, identity)
+		suite.Require().NoError(err)
+
+		decoder, err := zstd.NewReader(decrypted)
+		suite.Require().NoError(err)
+
+		snapshot, err := io.ReadAll(decoder)
+		suite.Require().NoError(err)
+
+		decoder.Close()
+		suite.Require().NoError(obj.Body.Close())
+
+		// etcd snapshots end with the sha256 of the bbolt database, as checked by etcdutl snapshot restore
+		suite.Require().Equal(sha256.Size, len(snapshot)%512)
+
+		sum := sha256.Sum256(snapshot[:len(snapshot)-sha256.Size])
+		suite.Require().Equal(sum[:], snapshot[len(snapshot)-sha256.Size:])
 	}
+
+	_, err = suite.s3Client.DeleteObject(suite.ctx, &s3.DeleteObjectInput{Bucket: aws.String(suite.serviceConfig.Bucket), Key: key})
+	suite.Require().NoError(err)
 }

@@ -9,7 +9,6 @@ import (
 	"context"
 	"fmt"
 
-	talosclient "github.com/siderolabs/talos/pkg/machinery/client"
 	talosconfig "github.com/siderolabs/talos/pkg/machinery/client/config"
 
 	"github.com/siderolabs/talos-backup/pkg/compression"
@@ -21,7 +20,7 @@ import (
 )
 
 // BackupSnapshot takes a snapshot of etcd, encrypts it or not and uploads it to S3.
-func BackupSnapshot(ctx context.Context, serviceConfig *config.ServiceConfig, talosConfig *talosconfig.Config, talosClient *talosclient.Client) error {
+func BackupSnapshot(ctx context.Context, serviceConfig *config.ServiceConfig, talosConfig *talosconfig.Config, talosClient talos.EtcdSnapshotter) error {
 	clusterName := serviceConfig.ClusterName
 	if clusterName == "" {
 		clusterName = talosConfig.Context
